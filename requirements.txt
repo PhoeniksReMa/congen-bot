@@ -1,0 +1,5 @@
+python-dotenv==1.2.1
+httpx==0.28.1
+aiogram==3.23.0
+SQLAlchemy==2.0.45
+aiosqlite==0.22.1
