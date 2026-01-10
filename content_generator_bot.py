@@ -6,17 +6,10 @@ import httpx
 from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import Command
-from aiogram.types import (
-    Message,
-    CallbackQuery,
-    InlineKeyboardMarkup,
-    InlineKeyboardButton,
-    LabeledPrice,
-    PreCheckoutQuery,
-)
+from aiogram.types import Message, CallbackQuery, LabeledPrice, PreCheckoutQuery
 
-from bot.db import SessionLocal, init_db
-from bot.dao import (
+from db import SessionLocal, init_db
+from dao import (
     get_or_create_user,
     create_order,
     set_order_invoiced,
@@ -25,7 +18,9 @@ from bot.dao import (
     mark_submitted,
     mark_failed,
 )
-from bot.models import OrderStatus
+from models import OrderStatus
+from messages import START_MESSAGE
+from buttons import menu
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
@@ -39,18 +34,10 @@ PRICE_STARS = int(os.getenv("PRICE_STARS", "6"))
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-# Простое состояние в памяти (только для диалога), сами заказы храним в БД
-STATE: dict[int, dict] = {}  # user_id -> {mode, step, style}
+STATE: dict[int, dict] = {}
 
 
 ORDER_PAYLOAD_RE = re.compile(r"^order:(\d+)$")
-
-
-def menu() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🎵 Инструментал", callback_data="mode:instrumental")],
-        [InlineKeyboardButton(text="🎤 Песня", callback_data="mode:song")],
-    ])
 
 
 async def api_generate(payload: dict) -> str:
@@ -64,10 +51,7 @@ async def api_generate(payload: dict) -> str:
 async def start_cmd(message: Message):
     STATE.pop(message.from_user.id, None)
     await message.answer(
-        "Что генерируем?\n\n"
-        "🎵 Инструментал: жанры (style) + описание трека (prompt)\n"
-        "🎤 Песня: жанры (style) + текст песни (prompt)\n\n"
-        f"После ввода параметров пришлю счёт на {PRICE_STARS}⭐. Генерация начнётся после оплаты.",
+        text=START_MESSAGE,
         reply_markup=menu(),
     )
 
@@ -156,7 +140,6 @@ async def text_flow(message: Message):
 
 @dp.pre_checkout_query()
 async def pre_checkout(pre_checkout_query: PreCheckoutQuery):
-    # Обязательно ответить, иначе платёж не завершится
     await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
 
 
@@ -196,8 +179,7 @@ async def successful_payment(message: Message):
             "style": order.style,
             "title": "Paid via Telegram Stars",
             "instrumental": instrumental,
-            "model": order.model,
-            # callBackUrl не задаём — пусть FastAPI ставит дефолт
+            "model": order.model
         }
         task_id = await api_generate(api_payload)
 
