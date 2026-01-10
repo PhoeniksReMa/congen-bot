@@ -1,5 +1,6 @@
 import os
 import re
+import html
 import logging
 
 import httpx
@@ -52,6 +53,12 @@ async def api_generate(payload: dict) -> str:
         r.raise_for_status()
         return r.json()["taskId"]
 
+async def check_task(task_id: str) -> dict:
+    async with httpx.AsyncClient(timeout=120) as client:
+        r = await client.get(f"{API_BASE_URL}/music/status/{task_id}")
+        r.raise_for_status()
+        return r.json()
+
 
 @dp.message(Command("start"))
 async def start_cmd(message: Message):
@@ -73,10 +80,68 @@ async def start_cmd(message: Message):
         text='Начать занаво можно нажав "Сбросить" в нижнем меню 👇',
         reply_markup=main_menu(),
     )
+@dp.message(Command("status"))
+async def status_cmd(message: Message):
+    parts = (message.text or "").strip().split(maxsplit=1)
+    if len(parts) < 2 or not parts[1].strip():
+        await message.answer("Пришли так: <code>/status &lt;task_id&gt;</code>", parse_mode="HTML")
+        return
+
+    task_id = parts[1].strip()
+
+    try:
+        result = await check_task(task_id)
+
+        status = result.get("status") or "UNKNOWN"
+
+        # Ожидаем список треков
+        data = (
+            result.get("raw", {})
+                  .get("data", {})
+                  .get("response", {})
+                  .get("sunoData")
+        ) or []
+
+        lines = [f"Статус: <b>{html.escape(str(status))}</b>"]
+
+        if status == "SUCCESS" and isinstance(data, list) and len(data) > 0:
+            for i, item in enumerate(data[:2], start=1):
+                if not isinstance(item, dict):
+                    continue
+
+                image_url = item.get("imageUrl")
+                audio_url = item.get("audioUrl")
+                title = item.get("title") or f"Трек {i}"
+
+                block = [f"{"ПЕРВЫЙ" if i == 1 else "ВТОРОЙ"}\n<b>{html.escape(str(f'Название: {title}'))}</b>"]
+
+                if image_url:
+                    block.append(f'🖼 <a href="{html.escape(image_url)}">Обложка</a>')
+                else:
+                    block.append("🖼 Обложка: нет ссылки")
+
+                if audio_url:
+                    block.append(f'🎵 <a href="{html.escape(audio_url)}">Трек</a>')
+                else:
+                    block.append("🎵 Трек: нет ссылки")
+
+                lines.append("\n".join(block))
+
+        await message.answer(
+            text="\n\n".join(lines),
+            disable_web_page_preview=True,
+            parse_mode="HTML",
+        )
+
+    except Exception:
+        await message.answer(
+            "Что-то пошло не так. Проверь task_id или попробуй немного позже."
+        )
 
 @dp.callback_query(F.data.startswith("function:"))
 async def function_chosen(callback: CallbackQuery):
     await callback.answer()
+    await callback.message.edit_reply_markup(reply_markup=None)
     function = callback.data.split(":", 1)[1]
 
     async with SessionLocal() as session:
@@ -106,7 +171,9 @@ async def function_chosen(callback: CallbackQuery):
 @dp.callback_query(F.data.startswith("mode:"))
 async def mode_chosen(callback: CallbackQuery):
     await callback.answer()
+    await callback.message.edit_reply_markup(reply_markup=None)
     mode = callback.data.split(":", 1)[1]
+    log.info(mode)
 
     async with SessionLocal() as session:
         user = await get_or_create_user(
@@ -126,6 +193,7 @@ async def mode_chosen(callback: CallbackQuery):
 @dp.callback_query(F.data.startswith("instrumental:"))
 async def instrumental_chosen(callback: CallbackQuery):
     await callback.answer()
+    await callback.message.edit_reply_markup(reply_markup=None)
     instrumental = callback.data.split(":", 1)[1] == "true"
 
     async with SessionLocal() as session:
@@ -276,14 +344,15 @@ async def successful_payment(message: Message):
         api_payload = {
             "chatId": message.chat.id,
             "userId": message.from_user.id,
-            "telegramPaymentChargeId": order.telegram_payment_charge_id,
+            "telegramPaymentChargeId": sp.telegram_payment_charge_id,
             "prompt": order.prompt,
-            "customMode": True if order == "custom" else False,
+            "customMode": True if order.mode == "custom" else False,
             "style": order.style,
             "title": "Paid via Telegram Stars",
             "instrumental": order.instrumental,
             "model": order.model
         }
+        log.info(api_payload)
         task_id = await api_generate(api_payload)
 
         async with SessionLocal() as session:
@@ -292,7 +361,7 @@ async def successful_payment(message: Message):
                 await mark_submitted(session, order, task_id=task_id)
                 await session.commit()
 
-        await message.answer(f"🎛 Генерация запущена!\nTaskId: `{task_id}`", parse_mode="Markdown")
+        await message.answer(f"🎛 Генерация запущена!\n Для проверки статуса, отправь в чат:  \n `/status {task_id}`", parse_mode="Markdown")
 
     except Exception as e:
         log.exception("generate after payment failed: %s", e)
@@ -301,15 +370,14 @@ async def successful_payment(message: Message):
             if order:
                 await mark_failed(session, order)
                 await session.commit()
-
-        await message.answer(
-            "⚠️ Оплата прошла, но генерацию запустить не удалось.\n"
-            "Заказ помечен как FAILED — можно попробовать повторить админ-командой."
-        )
         await bot(RefundStarPayment(
-            user_id=order.user_id,
-            telegram_payment_charge_id=order.telegram_payment_charge_id,
+            user_id=message.from_user.id,
+            telegram_payment_charge_id=sp.telegram_payment_charge_id,
         ))
+        await message.answer(
+            "⚠️ Неудалось запустить генерацию. Средства возвращены."
+        )
+
 
 
 async def on_startup(dispatcher: Dispatcher):
