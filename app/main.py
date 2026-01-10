@@ -261,6 +261,14 @@ async def text_flow(message: Message):
 
         st = await get_state(session, user.id)
         if not st or not st.step:
+            await message.answer(
+                text='Бот умеет генерировать и редактировать музыку. Выбери действие.',
+                reply_markup=start_menu(),
+            )
+            await  message.answer(
+                text='Начать занаво можно нажав "Сбросить" в нижнем меню 👇',
+                reply_markup=main_menu(),
+            )
             return
 
         if st.step == "style":
