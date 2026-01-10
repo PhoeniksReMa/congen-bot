@@ -2,7 +2,7 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models import User, Order, OrderStatus
+from db.models import User, Order, OrderStatus, State
 
 
 async def get_or_create_user(
@@ -32,6 +32,8 @@ async def create_order(
     session: AsyncSession,
     user: User,
     chat_id: int,
+    function: str,
+    instrumental: bool | None,
     mode: str,
     style: str,
     prompt: str,
@@ -41,6 +43,8 @@ async def create_order(
     order = Order(
         user_id=user.id,
         chat_id=chat_id,
+        function=function,
+        instrumental=instrumental,
         mode=mode,
         style=style,
         prompt=prompt,
@@ -84,3 +88,48 @@ async def mark_submitted(session: AsyncSession, order: Order, task_id: str) -> N
 async def mark_failed(session: AsyncSession, order: Order) -> None:
     order.status = OrderStatus.FAILED
     await session.flush()
+
+
+async def get_state(session: AsyncSession, user_id: int) -> State | None:
+    return await session.get(State, user_id)
+
+async def get_or_create_state(session: AsyncSession, user: User) -> State:
+    st = await session.get(State, user.id)
+    if st:
+        return st
+    st = State(user_id=user.id, step=None)
+    session.add(st)
+    return st
+
+async def set_state(
+    session: AsyncSession,
+    user: User,
+    *,
+    step: str | None = None,
+    function: str | None = None,
+    mode: str | None = None,
+    instrumental: bool | None = None,
+    style: str | None = None,
+    prompt: str | None = None,
+) -> State:
+    st = await get_or_create_state(session, user)
+
+    if step is not None:
+        st.step = step
+    if function is not None:
+        st.function = function
+    if mode is not None:
+        st.mode = mode
+    if instrumental is not None:
+        st.instrumental = instrumental
+    if style is not None:
+        st.style = style
+    if prompt is not None:
+        st.prompt = prompt
+
+    return st
+
+async def clear_state(session: AsyncSession, user: User) -> None:
+    st = await session.get(State, user.id)
+    if st:
+        await session.delete(st)
