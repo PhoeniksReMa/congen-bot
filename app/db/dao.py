@@ -2,7 +2,7 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .models import User, Order, OrderStatus
+from models import User, Order, OrderStatus
 
 
 async def get_or_create_user(
@@ -14,7 +14,6 @@ async def get_or_create_user(
     res = await session.execute(select(User).where(User.telegram_user_id == telegram_user_id))
     user = res.scalar_one_or_none()
     if user:
-        # обновим данные
         user.username = username
         user.first_name = first_name
         return user
