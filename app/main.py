@@ -291,6 +291,8 @@ async def text_flow(message: Message):
         instrumental = st.instrumental
         prompt = text
 
+        log.info(f"{function=}\n{mode=}\n{style=}\n{instrumental=}\n{prompt}")
+
         order = await create_order(
             session=session,
             user=user,
