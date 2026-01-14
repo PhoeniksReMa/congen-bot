@@ -370,6 +370,7 @@ async def successful_payment(message: Message):
             "model": order.model
         }
         log.info(f"{order.style=}")
+        log.info(f"{api_payload=}")
         task_id = await api_generate(api_payload)
 
         async with SessionLocal() as session:
