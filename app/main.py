@@ -26,6 +26,8 @@ from db.dao import (
 from db.models import OrderStatus
 from bot.buttons import start_menu, generation_song_mode_menu, song_type_menu, main_menu
 
+from sqlalchemy.inspection import inspect
+
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("aiogram-stars-bot")
@@ -303,7 +305,7 @@ async def text_flow(message: Message):
             model=MODEL,
             price_stars=PRICE_STARS,
         )
-        log.info(order)
+        log.info(inspect(order))
         invoice_payload = f"order:{order.id}"
         await set_order_invoiced(session, order, invoice_payload)
         await clear_state(session, user)
