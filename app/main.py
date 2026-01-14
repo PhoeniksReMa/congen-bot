@@ -373,7 +373,8 @@ async def successful_payment(message: Message):
         if order.mode == "custom":
             api_payload["style"] = order.style
 
-        log.info(api_payload)
+        full = {a.key: getattr(order, a.key) for a in inspect(order).mapper.column_attrs}
+        log.info(full)
         task_id = await api_generate(api_payload)
 
         async with SessionLocal() as session:
