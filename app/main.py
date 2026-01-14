@@ -276,7 +276,7 @@ async def text_flow(message: Message):
             )
             return
 
-        if st.step == "style":
+        if st.step == "style" and st.mode == "custom":
             await set_state(session, user, style=text, step="prompt")
             await session.commit()
 

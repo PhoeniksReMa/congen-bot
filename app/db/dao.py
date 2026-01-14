@@ -33,12 +33,13 @@ async def create_order(
     user: User,
     chat_id: int,
     function: str,
-    instrumental: bool | None,
-    mode: str,
-    style: str,
     prompt: str,
     model: str,
     price_stars: int,
+    instrumental: bool | None,
+    mode: str = "classic",
+    style: str = "",
+
 ) -> Order:
     order = Order(
         user_id=user.id,
