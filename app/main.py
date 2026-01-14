@@ -369,10 +369,7 @@ async def successful_payment(message: Message):
             "instrumental": order.instrumental,
             "model": order.model
         }
-
-        # full = {a.key: getattr(order, a.key) for a in inspect(order).mapper.column_attrs}
-        # log.info(full)
-        # log.info(api_payload)
+        log.info(f"{order.style=}")
         task_id = await api_generate(api_payload)
 
         async with SessionLocal() as session:
