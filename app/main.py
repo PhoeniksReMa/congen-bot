@@ -34,6 +34,7 @@ BOT_TOKEN = os.environ["BOT_TOKEN"]
 API_BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
 MODEL = os.getenv("MODEL", "V4_5ALL")
 PRICE_STARS = int(os.getenv("PRICE_STARS", "6"))
+BOT_SERVICE_TOKEN=os.getenv("BOT_SERVICE_TOKEN")
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
@@ -45,8 +46,12 @@ ORDER_PAYLOAD_RE = re.compile(r"^order:(\d+)$")
 
 
 async def api_generate(payload: dict) -> str:
+    headers = {
+        "X-Bot-Token": BOT_SERVICE_TOKEN,
+        "Content-Type": "application/json",
+    }
     async with httpx.AsyncClient(timeout=120) as client:
-        r = await client.post(f"{API_BASE_URL}/music/generate", json=payload)
+        r = await client.post(f"{API_BASE_URL}/music/generate", json=payload, headers=headers)
         if r.status_code == 422:
             log.error("422 from API. Sent payload=%s", payload)
             log.error("422 details=%s", r.text)
