@@ -287,7 +287,7 @@ async def text_flow(message: Message):
 
         function = st.function
         mode = st.mode
-        style = st.style
+        style = st.style if mode == "custom" else ""
         instrumental = st.instrumental
         prompt = text
 
