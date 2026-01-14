@@ -279,17 +279,17 @@ async def text_flow(message: Message):
             )
             return
 
-        if st.step == "style" and st.mode == "custom":
-            await set_state(session, user, style=text, step="prompt")
-            await session.commit()
-
-            if not st.instrumental:
-                await message.answer("2/2) Пришли текст песни (lyrics). Можно с [verse]/[chorus].")
-            return
+        # if st.step == "style" and st.mode == "custom":
+        #     await set_state(session, user, style=text, step="prompt")
+        #     await session.commit()
+        #
+        #     if not st.instrumental:
+        #         await message.answer("2/2) Пришли текст песни (lyrics). Можно с [verse]/[chorus].")
+        #     return
 
         function = st.function
         mode = st.mode
-        style = st.style if mode == "custom" else ""
+        # style = st.style if mode == "custom" else ""
         instrumental = st.instrumental
         prompt = text
 
@@ -300,7 +300,7 @@ async def text_flow(message: Message):
             instrumental=instrumental,
             function=function,
             mode=mode,
-            style=style,
+            # style=style,
             prompt=prompt,
             model=MODEL,
             price_stars=PRICE_STARS,
