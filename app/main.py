@@ -35,6 +35,7 @@ API_BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
 MODEL = os.getenv("MODEL", "V4_5ALL")
 PRICE_STARS = int(os.getenv("PRICE_STARS", "6"))
 BOT_SERVICE_TOKEN=os.getenv("BOT_SERVICE_TOKEN")
+MAX_PROMPT_CLASSIC=500
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
@@ -266,6 +267,14 @@ async def text_flow(message: Message):
         )
 
         st = await get_state(session, user.id)
+        if st.mode == "classic" and len(text) > 500:
+            await message.answer(
+                f"Слишком длинный запрос для обычного режима (лимит {MAX_PROMPT_CLASSIC} символов).\n"
+                f"Сейчас: {len(text)}.\n"
+                f"Сократи текст или включи Custom режим."
+            )
+            return
+
         if not st or not st.step:
             await message.answer(
                 text='Бот умеет генерировать и редактировать музыку. Выбери действие.',
