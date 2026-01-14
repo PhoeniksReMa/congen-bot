@@ -44,6 +44,7 @@ STATE: dict[int, dict] = {}
 
 
 ORDER_PAYLOAD_RE = re.compile(r"^order:(\d+)$")
+MORDER_PAYLOAD_RE = re.compile(r"^morder:(\d+)$")
 
 
 async def api_generate(payload: dict) -> str:
@@ -65,6 +66,15 @@ async def check_task(task_id: str) -> dict:
         r.raise_for_status()
         return r.json()
 
+async def api_mark_paid(order_id: int, charge_id: str) -> None:
+    headers = {
+        "X-Bot-Token": BOT_SERVICE_TOKEN,
+        "Content-Type": "application/json",
+    }
+    payload = {"order_id": order_id, "telegram_payment_charge_id": charge_id}
+    async with httpx.AsyncClient(timeout=60) as client:
+        r = await client.post(f"{API_BASE_URL}/payments/stars/paid", json=payload, headers=headers)
+        r.raise_for_status()
 
 @dp.message(Command("start"))
 async def start_cmd(message: Message):
@@ -333,6 +343,26 @@ async def pre_checkout(pre_checkout_query: PreCheckoutQuery):
 @dp.message(F.successful_payment)
 async def successful_payment(message: Message):
     sp = message.successful_payment
+    payload = sp.invoice_payload or ""
+
+    m_mini = MORDER_PAYLOAD_RE.match(payload)
+    if m_mini:
+        mini_order_id = int(m_mini.group(1))
+
+        # сообщаем FastAPI: miniapp order оплачен
+        try:
+            await api_mark_paid(mini_order_id, sp.telegram_payment_charge_id)
+            await message.answer("✅ Оплата получена! Запуск в MiniApp…")
+        except Exception as e:
+            log.exception("mark paid failed: %s", e)
+            # при желании: refund
+            await bot(RefundStarPayment(
+                user_id=message.from_user.id,
+                telegram_payment_charge_id=sp.telegram_payment_charge_id,
+            ))
+            await message.answer("⚠️ Не удалось запустить заказ MiniApp. Средства возвращены.")
+        return
+
     m = ORDER_PAYLOAD_RE.match(sp.invoice_payload or "")
     if not m:
         await message.answer("Оплата получена ✅, но payload заказа непонятен. /start")
