@@ -26,8 +26,6 @@ from db.dao import (
 from db.models import OrderStatus
 from bot.buttons import start_menu, generation_song_mode_menu, song_type_menu, main_menu
 
-from sqlalchemy.inspection import inspect
-
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("aiogram-stars-bot")
@@ -279,29 +277,24 @@ async def text_flow(message: Message):
             )
             return
 
-        # if st.step == "style" and st.mode == "custom":
-        #     await set_state(session, user, style=text, step="prompt")
-        #     await session.commit()
-        #
-        #     if not st.instrumental:
-        #         await message.answer("2/2) Пришли текст песни (lyrics). Можно с [verse]/[chorus].")
-        #     return
+        if st.step == "style" and st.mode == "custom":
+            await set_state(session, user, style=text, step="prompt")
+            await session.commit()
 
-        function = st.function
-        mode = st.mode
-        # style = st.style if mode == "custom" else ""
-        instrumental = st.instrumental
-        prompt = text
+            if not st.instrumental:
+                await message.answer("2/2) Пришли текст песни (lyrics). Можно с [verse]/[chorus].")
+            return
+
 
         order = await create_order(
             session=session,
             user=user,
             chat_id=message.chat.id,
-            instrumental=instrumental,
-            function=function,
-            mode=mode,
-            # style=style,
-            prompt=prompt,
+            instrumental=st.instrumental,
+            function=st.function,
+            mode=st.mode,
+            style=st.style if st.mode == "custom" else "",
+            prompt=text,
             model=MODEL,
             price_stars=PRICE_STARS,
         )
@@ -363,7 +356,7 @@ async def successful_payment(message: Message):
             "userId": message.from_user.id,
             "telegramPaymentChargeId": sp.telegram_payment_charge_id,
             "prompt": order.prompt,
-            # "style": order.style,
+            "style": order.style,
             "customMode": True if order.mode == "custom" else False,
             "title": "Paid via Telegram Stars",
             "instrumental": order.instrumental,
@@ -371,10 +364,6 @@ async def successful_payment(message: Message):
         }
         log.info(f"{order.style=}")
         log.info(f"{api_payload=}")
-        log.info("RUNNING __file__=%s", __file__)
-        log.info("CWD=%s", os.getcwd())
-        log.info("SOURCE successful_payment:\n%s", inspect.getsource(successful_payment))
-        log.info("ASSERT style in payload? %s", "style" in api_payload)
         task_id = await api_generate(api_payload)
 
         async with SessionLocal() as session:
