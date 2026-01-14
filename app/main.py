@@ -271,7 +271,6 @@ async def text_flow(message: Message):
             await message.answer(
                 f"Слишком длинный запрос для обычного режима (лимит {MAX_PROMPT_CLASSIC} символов).\n"
                 f"Сейчас: {len(text)}.\n"
-                f"Сократи текст или включи Custom режим."
             )
             return
 
