@@ -210,7 +210,8 @@ async def instrumental_chosen(callback: CallbackQuery):
         )
         st = await get_state(session, user.id)
         mode = st.mode
-        await set_state(session, user, instrumental=instrumental, step="style")
+        step = "style" if mode == "custom" else "prompt"
+        await set_state(session, user, instrumental=instrumental, step=step)
         await session.commit()
 
     if mode == "classic":
@@ -280,9 +281,9 @@ async def text_flow(message: Message):
             await set_state(session, user, style=text, step="prompt")
             await session.commit()
 
-            if not st.instrumental and st.mode == "custom":
+            if not st.instrumental:
                 await message.answer("2/2) Пришли текст песни (lyrics). Можно с [verse]/[chorus].")
-                return
+            return
 
         function = st.function
         mode = st.mode
@@ -360,11 +361,13 @@ async def successful_payment(message: Message):
             "telegramPaymentChargeId": sp.telegram_payment_charge_id,
             "prompt": order.prompt,
             "customMode": True if order.mode == "custom" else False,
-            "style": order.style,
             "title": "Paid via Telegram Stars",
             "instrumental": order.instrumental,
             "model": order.model
         }
+        if order.mode == "custom":
+            api_payload["style"] = order.style
+
         log.info(api_payload)
         task_id = await api_generate(api_payload)
 
