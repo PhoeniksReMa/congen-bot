@@ -365,16 +365,16 @@ async def successful_payment(message: Message):
             "userId": message.from_user.id,
             "telegramPaymentChargeId": sp.telegram_payment_charge_id,
             "prompt": order.prompt,
+            "style":order.style
             "customMode": True if order.mode == "custom" else False,
             "title": "Paid via Telegram Stars",
             "instrumental": order.instrumental,
             "model": order.model
         }
-        if order.mode == "custom":
-            api_payload["style"] = order.style
 
         full = {a.key: getattr(order, a.key) for a in inspect(order).mapper.column_attrs}
         log.info(full)
+        log.info(api_payload)
         task_id = await api_generate(api_payload)
 
         async with SessionLocal() as session:
