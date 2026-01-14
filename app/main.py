@@ -363,7 +363,7 @@ async def successful_payment(message: Message):
             "userId": message.from_user.id,
             "telegramPaymentChargeId": sp.telegram_payment_charge_id,
             "prompt": order.prompt,
-            "style":order.style,
+            # "style": order.style,
             "customMode": True if order.mode == "custom" else False,
             "title": "Paid via Telegram Stars",
             "instrumental": order.instrumental,
