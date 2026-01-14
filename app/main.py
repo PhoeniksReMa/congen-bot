@@ -306,12 +306,12 @@ async def text_flow(message: Message):
             price_stars=PRICE_STARS,
         )
 
-        full = {a.key: getattr(order, a.key) for a in inspect(order).mapper.column_attrs}
-        log.info(full)
         invoice_payload = f"order:{order.id}"
         await set_order_invoiced(session, order, invoice_payload)
         await clear_state(session, user)
         await session.commit()
+        full = {a.key: getattr(order, a.key) for a in inspect(order).mapper.column_attrs}
+        log.info(full)
 
     await message.answer("Ок. Отправляю счёт на оплату ⭐")
 
@@ -372,9 +372,9 @@ async def successful_payment(message: Message):
             "model": order.model
         }
 
-        full = {a.key: getattr(order, a.key) for a in inspect(order).mapper.column_attrs}
-        log.info(full)
-        log.info(api_payload)
+        # full = {a.key: getattr(order, a.key) for a in inspect(order).mapper.column_attrs}
+        # log.info(full)
+        # log.info(api_payload)
         task_id = await api_generate(api_payload)
 
         async with SessionLocal() as session:
